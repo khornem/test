@@ -1,0 +1,109 @@
+#!/bin/bash
+
+#MODIFICA NETMAP PARA AÑADIR SNIFFERS Y ENLACES DE TUNNEL
+#añade al principio de cada línea un sniffer y un enlace de tunel con el formato
+#   8xx 9xx:0/0 
+#comenzando por 900
+
+DEBUG=0
+
+if [ ! -f $NETMAP ];
+then
+	echo "NETMAP does not exist"
+	exit
+fi
+
+#Comprueba que no existe en el fichero NETMAP el sniffer o el tunnel_id
+function next_tunnel(){
+	local i=0
+	local test=""
+	local id=$1
+#check tunnel id is in range 800-899]
+	if [[ $1 < 800 ]];
+	then
+		echo "0"
+	fi
+	for ((i=$1;i<=899;i++));
+	do
+		 test=`grep "^ *[^#]*$i:0/0" ./NETMAP.bck`
+	   if [[ $test == "" ]];
+     then
+       echo $i
+     	 exit
+     fi
+  done
+}
+  	
+function next_sniffer(){
+	local i=0
+	local test=""
+	local id=$1
+#check sniffer id is in range 900-999]
+	if [[ $1 < 900 ]];
+	then
+		echo "1"
+	fi
+	for ((i=$1;i<=999;i++));
+	do
+		 test=`grep "^ *[^#]*$i:0/0" ./NETMAP.bck`
+	   if [[ $test == "" ]];
+     then
+       echo $i
+     	 exit
+     fi
+  done
+  echo "0"
+}
+
+
+sniffer=900
+tunnel=800
+#echo "Create backup copy"
+cp NETMAP NETMAP.bck
+rm NETMAP
+
+cat NETMAP.bck | while read LINE
+do
+#check if line begins with #
+	if [[ `expr "$LINE" : "^ *#"` == 0 ]];
+	then
+		if [[ `expr "$LINE" : "^ *[89][0-9][0-9]:"` == 0 ]];
+		then
+			if [[ "$LINE" == "" ]];
+			then
+				echo >>NETMAP
+			else
+				test_sniffer=$(next_sniffer $sniffer)
+				test_tunnel=$(next_tunnel $tunnel)
+				if [[ $DEBUG == 1 ]];
+				then
+				  echo $LINE
+					echo "++++ DEBUG: sniffer=$sniffer test_sniffer=$test_sniffer tunnel=$tunnel test_tunnel=$test_tunnel"
+				fi
+				if [[ $test_sniffer != 0 ]];
+				then
+					sniffer=$test_sniffer
+				fi
+				if [[ $test_tunnel != 0 ]];
+				then
+					tunnel=$test_tunnel
+				fi
+								
+			  echo $tunnel":0/0" $sniffer":0/0 "$LINE >>NETMAP
+			  ((sniffer++))
+			  ((tunnel++))
+			fi
+		else
+			echo $LINE >>NETMAP
+		fi
+	else
+		echo $LINE >>NETMAP
+	fi
+done
+
+if [ ! -f NETMAP ];
+then
+	cp NETMAP.bck NETMAP
+fi
+
+

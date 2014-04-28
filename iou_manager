@@ -1,0 +1,311 @@
+#!/bin/bash
+
+
+
+#Topology file
+file=$1
+
+
+
+
+
+function init_menu(){
+	if [[ $1 == 1 ]];
+	then
+		iou_colorize_simple $file
+	else
+		clear
+	fi
+	echo "========================================"
+	echo "Please choose and option"
+	echo "  1) Start routers"
+	echo "  2) Stop routers"
+	echo "  3) List all active routers"
+	echo "  0) Exit application"
+	echo " 99) stop routers and exit"
+	echo
+	printf "        Option: "
+}
+
+function start_menu(){
+	if [[ $1 == 1 ]];
+	then
+		iou_colorize_simple $file
+	else
+		clear
+	fi
+	echo "========================================"
+	echo "Start routers menu"
+	echo "Plese choose and option:"
+	echo "  1) Start IOL router"
+	echo "  2) Start IOU router"
+	echo "  3) Start IOU switch"
+	echo "  4) Start PAGENT router"
+	echo "  0) Return to main menu"
+	echo " 99) Stop all routers and exit" 
+	echo
+	printf "        Option: "
+}
+
+function start_menu_range(){
+	if [[ $3 == 1 ]];
+	then
+		iou_colorize_simple $file
+	else
+		clear
+	fi
+	echo "========================================"
+	echo "Start $1 routers menu"	
+	echo "Please choose and option"
+	echo " 1) start router or range of routers"
+	echo "    Syntax:"
+	echo "      Option a) single router: <id>"
+	echo "      Option b) range of routers: <start id>-<end id>"
+	echo " 0) Return to previous menu"
+	echo
+	printf "        Option: "
+	
+}
+
+function stop_menu(){
+	if [[ $2 == 1 ]];
+	then
+		iou_colorize_simple $file
+	else
+		clear
+	fi
+	echo "========================================"
+	echo "Stop $1 routers menu"	
+	echo "Please choose and option"
+	echo " 1) stop router or range of routers"
+	echo "    Syntax:"
+	echo "      Option a) single router: <id>"
+	echo "      Option b) range of routers: <start id>-<end id>"
+	echo " 2) kill all routers"
+	echo " 0) Return to previous menu"
+	echo " 99) Stop all routers and exit" 
+	echo
+	printf "        Option: "
+}
+
+
+function start_routers(){
+	local range=$1
+	local type=$2
+	local option=""
+	local start_router_id=`echo $range|cut -d'-' -f1`
+	local end_router_id=`echo $range|cut -d'-' -f2`
+	local number_of_routers=`expr $end_router_id - $start_router_id + 1`
+	if [[ $number_of_routers < 1 ]];
+	then
+		echo "Error in range of routers"
+		exit
+	fi
+	
+	case $type in
+		1)
+			option="-l"
+			;;
+		2)
+			option="-r"
+			;;
+		3)
+			option="-s"
+			;;
+		4)
+			option="-p"
+			;;
+	esac
+	
+	iou_start $option -range $number_of_routers $start_router_id &>/dev/null
+}
+	
+function stop_routers(){
+	local range=$1
+	local type=$2
+	local option=""
+	local start_router_id=`echo $range|cut -d'-' -f1`
+	local end_router_id=`echo $range|cut -d'-' -f2`
+	local number_of_routers=`expr $end_router_id - $start_router_id + 1`
+	if [[ $number_of_routers < 1 ]];
+	then
+		echo "Error in range of routers"
+		exit
+	fi
+	
+
+	
+	iou_kill -rn $number_of_routers $start_router_id &>/dev/null
+}
+	
+	
+	
+
+state=0
+router_type=0
+topology=1
+#router types:
+#1= IOL
+#2= IOU
+#3= L2IOU
+#4= PAGENT
+
+if [[ $# > 1 ]];
+then
+	echo "Error: Number of arguments is incorrect"
+	echo "Usage: iou_manager <topology file>"
+	echo
+	exit
+fi
+
+if [[ $# == 0 ]];
+then
+	topology=0;
+elif [ ! -f $1 ];
+	then
+		echo "File $file does not exist"
+		echo "Usage: iou_manager  [<topology file>]"
+		echo
+	exit
+fi
+
+
+init_menu $topology
+while read LINE
+do
+	case $state in
+		0)
+			case $LINE in
+				0)
+					exit
+					;;
+				1)
+					state=1
+					start_menu $topology
+					;;
+				2)
+					state=3
+					#echo "state = 3"
+					stop_menu $topology
+					;;
+				3)
+					echo "==================================="
+					echo " Current active routers in system"
+					echo "==================================="
+					iou_routers
+					read LINE
+					init_menu $topology
+					;;
+				99)
+					iou_kill -a
+					exit
+					;;
+				*)
+					echo "Invalid option"
+					init_menu $topology
+					;;
+			esac
+			;;
+		1)
+			case $LINE in
+				1)
+					state=2
+					router_type=$LINE
+					message="IOL routers"
+					start_menu_range $message $router_type $topology
+					;;
+				2)
+					state=2
+					router_type=$LINE
+					message="IOU routers"
+					start_menu_range $message $router_type $topology
+					;;
+				3)
+					state=2
+					router_type=$LINE
+					message="L2IOU switches"
+					start_menu_range $message $router_type $topology
+					;;
+				4)
+					state=2
+					router_type=$LINE
+					message="PAGENT routers"
+					start_menu_range $message $router_type $topology
+					;;
+				0)
+					state=0
+					init_menu $topology
+					;;
+				99)
+					iou_kill -a
+					exit
+					;;
+				*)
+					state=1
+					echo "Invalid option"
+					start_menu $topology
+					;;
+			esac
+			;;
+		2)
+			case $LINE in
+				1)
+					printf "     routers: "
+					read range_routers
+					start_routers  $range_routers $router_type
+					start_menu_range $message $router_type
+					;;
+				0)	
+					state=1
+					start_menu $topology
+					;;
+				99)
+					iou_kill -a
+					exit
+					;;
+				*)
+					state=2
+					echo "Invalid option"
+					start_menu_range $message $router_type $topology
+					;;
+			esac
+			;;
+		3)
+			case $LINE in
+				1)
+					printf "    routers: "
+					read range_routers
+					echo "$range_routers"
+					stop_routers $range_routers
+					stop_menu $topology
+					;;
+				2)	iou_kill -a
+					state 0
+					init_menu $topology
+					;;
+				0)	
+					state=0
+					init_menu $topology
+					;;
+				99)
+					iou_kill -a
+					exit
+					;;
+				*)
+					state=3
+					echo "Invalid option"
+					stop_menu $topology
+					;;
+			esac
+			;;
+		99)
+			iou_kill -a
+			exit
+			;;
+		*)
+			echo "Invalid option"
+			init_menu $topology
+			;;
+	esac
+done
+

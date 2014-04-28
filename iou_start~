@@ -1,0 +1,51 @@
+#!/bin/bash
+
+IOU_IMAGE="/usr/local/bin/i86bi_linux-adventerprisek9-ms.152-2"
+#IOU_IMAGE="/usr/bin/i86bi_linux-adventerprisek9-ms"
+ETHERNET=4
+SERIAL=0
+
+
+
+if [ $# -eq 3  ] 
+then
+ source_router=$3
+ num_routers=$1
+ origin_port=`expr $2 - 1`
+elif [ $# -eq 2 ]
+then
+ num_routers=$1
+ origin_port=`expr $2 - 1`
+ source_router=1 
+elif [ $# -eq 1 ] 
+then
+ num_routers=$1
+ source_router=1
+ origin_port=2000
+else
+ echo "Usage: start_iou.sh <number of routers> [<origin port> [<origin router>]]"
+ echo "Default origin port equal 2001"
+ echo "Default origin router equal 1"
+ exit 1
+fi
+
+echo "-----------------------------------------"
+echo "Starting routers R$source_router to R`expr $source_router + $num_routers - 1`"
+echo "Ports used from `expr $origin_port + 1` to `expr $origin_port + $num_routers`"
+echo "-----------------------------------------"
+
+
+
+export NETIO_NETMAP=./NETMAP
+for ((i=1; i<=$num_routers; i++)) ;do
+ dport=`expr $origin_port + $i`
+ router_id=`expr $i + $source_router - 1`
+ /usr/bin/wrapper-linux -m $IOU_IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n 128 -m 256 -R -U $router_id &
+  sleep 5
+done
+unset NETIO_NETMAP
+sleep 10
+echo "------------------------------------------"
+echo "All Routers started"
+echo ""
+

@@ -1,0 +1,283 @@
+#!/bin/bash
+
+
+BLUE="\e[0;34m"
+GREEN="\e[0;32m"
+RED="\e[0;31m"
+NOCOLOR="\e[0m"
+file=$1
+SLEEP=5
+
+#set -x
+#trap read debug
+
+tmp_iou_active_routers=/tmp/colorize.tmp
+
+
+function leyenda(){
+    echo "$(tput setab 1)Switched off router$(tput sgr0) $(tput setab 2)IOU router$(tput sgr0) $(tput setab 6)IOL router$(tput sgr0)"
+}
+
+function colorize_line(){
+#estados
+# 0: carácter normal
+# 1: barra vertical
+# 2: primer número tras barra vertical
+# 3: segundo número tras barra vertical
+# 4: tercer número tras barra vertical
+# 5: barra vertical de cierre de caja
+    
+    line=$1
+    output=""
+    line_length=${#line}
+    tmp=""
+    estado=0
+    #echo "*****************"
+    #echo $line
+    #echo "*****************"
+    
+    for ((i=0;i<$line_length;i++));
+    do
+        #DEBUG
+        #printf "++++ i=%3d   char=%c  estado = %d\n" $i ${line:i:1} $estado
+        case $estado in
+            0)
+                if [[ ${line:i:1} == "|" ]] || [[ ${line:i:1} == "+" ]];
+                then
+                    estado=1
+                    numeros=0
+                fi
+                output=$output${line:i:1}                
+                ;;
+            1)
+                case ${line:i:1} in
+                    [0-9])
+                        tmp=$tmp${line:i:1}
+                        estado=2
+                        numeros=1
+                        ;;
+                    " ")
+                        tmp=$tmp${line:i:1}
+                        estado=2                        
+                        ;;
+                    "|")
+                        output=$output${line:i:1}
+                        estado=1
+                        numeros=0
+                        ;;
+                    "+")
+                        output=$output${line:i:1}
+                        estado=1
+                        numeros=0
+                        ;;
+                    "\\")
+                        output=$output"\\"
+                        estado=0
+                        ;;
+                    *)
+                        output=$output${line:i:1}
+                        estado=0
+                        ;;
+                esac
+                ;;
+            2)
+                case ${line:i:1} in
+                    [0-9])
+                        tmp=$tmp${line:i:1}
+                        estado=3
+                        numeros=1
+                        ;;
+                    " ")
+                        tmp=$tmp${line:i:1}
+                        estado=3                        
+                        ;;
+                    "|")
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=1
+                        ;;
+                    "+")
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=1
+                        ;;
+                    "\\")
+                        output=$output$tmp"\\"
+                        tmp=""
+                        estado=0
+                        ;;
+                    *)
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=0
+                        ;;
+                esac               
+                ;;
+            3)
+                case ${line:i:1} in
+                    [0-9])
+                        tmp=$tmp${line:i:1}
+                        estado=4
+                        numeros=1
+                        ;;
+                    " ")
+                        tmp=$tmp${line:i:1}
+                        estado=4                        
+                        ;;
+                    "|")
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=1
+                        ;;
+                    "+")
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=1
+                        ;;
+                    "\\")
+                        output=$output$tmp"\\"
+                        tmp=""
+                        estado=0
+                        ;;
+                    *)
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=0
+                        ;;
+                esac               
+                ;;
+            4)
+                  case ${line:i:1} in
+                    "|")
+                        if [[ $numeros == 0 ]];
+                        then
+                            output=$output$tmp${line:i:1}
+                            estado=1
+                            tmp=""
+                        else
+                            tmp_trim=`echo $tmp|tr -d ' '`
+                            #echo "#"$tmp_trim"#"
+                            router_activo=`cat $tmp_iou_active_routers|grep "^$tmp_trim :"`
+                            if [[ $router_activo == "" ]];
+                            then
+                                output=$output$(tput setab 1)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                            else
+                                linux=`echo $router_activo|grep linux`
+                                if [[ $linux == "" ]];
+                                then
+                                    output=$output$(tput setab 2)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                                else
+                                    output=$output$(tput setab 6)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                                fi                                
+                            fi
+                            tmp=""
+                            estado=0
+                            numeros=0
+                        fi
+                        ;;
+                    "+")
+                        if [[ $numeros == 0 ]];
+                        then
+                            output=$output$tmp${line:i:1}
+                            estado=1
+                            tmp=""
+                        else
+                            tmp_trim=`echo $tmp|tr -d ' '`
+                            #echo "#"$tmp_trim"#"
+                            router_activo=`cat $tmp_iou_active_routers|grep "^$tmp_trim :"`
+                            if [[ $router_activo == "" ]];
+                            then
+                                output=$output$(tput setab 1)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                            else
+                                linux=`echo $router_activo|grep linux`
+                                if [[ $linux == "" ]];
+                                then
+                                    output=$output$(tput setab 2)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                                else
+                                    output=$output$(tput setab 6)$(tput bold)$tmp$(tput sgr0)${line:i:1}
+                                fi                                
+                            fi
+                            tmp=""
+                            estado=0
+                            numeros=0
+                        fi
+                        ;;
+                    "\\")
+                        output=$output$tmp"\\"
+                        tmp=""
+                        estado=0
+                        ;;
+                    *)
+                        output=$output$tmp${line:i:1}
+                        tmp=""
+                        estado=0
+                        ;;
+                esac
+                ;;
+        esac
+    done
+    echo $output
+        
+    
+}
+
+
+if [ ! -f $file ];
+then
+    echo "Error: file $file not found"
+fi
+
+#printf "%s $BLUE%s $RED%s $GREEN%s $NOCOLOR\n" HELLO BLUE RED GREEN
+
+
+#texto="Hola que tal, como estas"
+#topology="|2  |     |1  |      |200|     |121| "
+#echo $topology
+#output=""
+
+
+
+#echo
+  
+#echo "|2  |     |1  |      |200|     |121| "
+#output=`expr "$texto" : 'que'`
+#output=`expr index "hola que tal"  'h'`
+#echo $output
+#output=${texto:0:3}
+#output="expr index "$topology" '[0-9]'"
+#echo $output
+
+#echo "***********************************"
+#echo "***********************************"
+
+IFS=''
+while [[ 1 ]]
+do
+    screen=""
+    primera_linea=1;
+    iou_routers>$tmp_iou_active_routers
+    while read -r LINE
+    do
+        if [[ $primera_linea == 1 ]];
+        then
+            screen=$(colorize_line $LINE)
+            primera_linea=0
+        else
+            #printf -v var 'FILE=_%s_%s.dat' $val1 $val2
+            printf -v screen '%s\n%s' $screen $(colorize_line $LINE)
+            #screen="$screen$\n$(colorize_line $LINE)"
+        fi
+    done < $1
+    clear
+    echo $screen
+    echo
+    #iou_routers
+    leyenda
+    sleep $SLEEP
+done
+
+rm $tmp_iou_active_routers
+#cat $file | while read -n 1 LINE
+#do
+
+

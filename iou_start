@@ -1,0 +1,356 @@
+#!/bin/bash
+
+IOU_IMAGE="/usr/local/bin/i86bi_linux-adventerprisek9-ms.152-2"
+IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
+#IOU_IMAGE="/usr/bin/i86bi_linux-adventerprisek9-ms"
+ETHERNET=2
+SERIAL=4
+
+
+#"/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms -L -c 100.cfg 100 &"
+IOU_SWITCH_IMAGE="/usr/local/bin/i86bi_linuxl2-upk9-ms"
+IOU_PAGENT_IMAGE="/usr/local/bin/i86bi_linux-tpgen+ipbase-ms.PAGENT.4.7.0"
+
+#sudo ifconfig eth0 hw ether e8:9a:8f:de:a5:aa
+#sudo ifconfig eth0  hw ether 00:50:56:87:49:E3 
+LICENSED_MAC="00:50:56:87:49:E3"
+
+#check current MAC
+#If there is no eth0 (ultrabooks) create a fake eth0 interface
+if [ "`ifconfig -a | grep eth0`" = "" ];
+	then
+	ioltuncfg --create --int=eth0
+fi
+CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
+
+if [[ "$CURRENT_MAC" != "LICENSED_MAC" ]];
+then
+	CHANGE_MAC=1
+else
+	CHANGE_MAC=0
+fi
+
+CONFIG_PATH="./"
+
+#Generates initial config file on /tmp/iou_init_config/
+initial_config () {
+	
+	local i
+	local j
+	CONFIG_PATH="./"
+	
+	if [ -f $1.cfg ];
+	then
+		rm $1.cfg
+	fi
+	#mkdir $CONFIG_PATH
+	touch $CONFIG_PATH/$1.cfg
+	echo "hostname R$1">> $CONFIG_PATH/$1.cfg
+	echo "no ip domain-lookup" >> $CONFIG_PATH/$1.cfg
+	echo "aaa new-model" >>$CONFIG_PATH/$1.cfg
+	echo "aaa authe lo de no" >>$CONFIG_PATH/$1.cfg
+	echo "aaa authe en de no" >>$CONFIG_PATH/$1.cfg
+	echo "line con 0" >>$CONFIG_PATH/$1.cfg
+	echo "exec-timeout 0 0" >>$CONFIG_PATH/$1.cfg
+	echo "logging synchronous" >>$CONFIG_PATH/$1.cfg
+	
+	
+	MAC="0000."`printf "%04d" $1`
+	#Verify how many digit $1 has
+	
+
+	for ((i=0;i<9;i++));
+	do
+		for ((j=0;j<4;j++));
+		do
+			echo "interface e$i/$j" >>$CONFIG_PATH/$1.cfg
+			echo "mac-address $MAC.0$i""0$j" >>$CONFIG_PATH/$1.cfg
+		done
+	done
+}
+
+
+	
+	
+
+
+function banner (){
+	echo "Usage: iou_start <device_type> [OPTIONS]"
+	echo
+	echo "Device type:"
+	echo "	-r : iou router"
+	echo "	-s : l2iou switch"
+	echo "	-p : iou pagent"
+	echo "	-l : iol router"
+	echo 
+	echo "	OPTIONS"
+	echo "	-id : identifier of the router to be started"
+	echo "		-[rsp]: <router_id> [console port]"
+	echo "		-l: <router_id> [<configuration_file>"
+	echo "	-range : several routers to be started at once"
+	echo "		-[rsp]: <number of routers> [<origin_router> [<origin_console>]]"
+	echo "		-l: [-c] <number of routers> [<origin_router> [<origin_console>]]"
+}
+
+ 
+DEBUG=0
+
+
+NVRAM=128
+IOL=0
+case $1 in
+	"-r")	IMAGE=$IOU_IMAGE
+			ETHERNET=4
+			SERIAL=2
+			;;
+	"-s")	IMAGE=$IOU_SWITCH_IMAGE
+			ETHERNET=10
+			SERIAL=0
+			;;
+	"-p")	IMAGE=$IOU_PAGENT_IMAGE
+			ETHERNET=10
+			SERIAL=4
+			NVRAM=512
+			;;
+	"-l")	IMAGE=$IOL_IMAGE
+			ETHERNET=4
+			SERIAL=2
+			IOL=1
+
+			;;
+esac
+
+if [[ $DEBUG == 1 ]];
+then
+	echo "DEBUG POINT 1: after initial case"
+	echo "IMAGE=$IMAGE"
+	echo "ETHERNET=$ETHERNET"
+fi
+
+
+export NETIO_NETMAP=./NETMAP
+
+
+#START IOU IMAGES
+if [[ $IOL == 0 ]];
+then
+	case $2 in
+		"-id") 
+				if [[ $# == 3 ]];
+				then
+					nvram_file="nvram"`printf "%05d" $3`
+					if [ -f $nvram_file ];
+					then
+						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $3 &
+					else
+						initial_config $3
+						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $3.cfg -R -U $3 &
+					fi
+				elif [[ $# == 4 ]];
+				then
+					/usr/local/bin/wrapper-linux -m $IMAGE -p $4 -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $3 &
+				else
+					banner
+					exit
+				fi
+				sleep 5
+				exit
+				;;
+		"-range")
+				if [[ $# == 5 ]];
+				then
+					source_router=$4
+					num_routers=$3
+					origin_port=`expr $5 - 1`
+				elif [ $# -eq 4 ]
+				then
+					num_routers=$3
+					origin_port=`expr 2000 + $4 - 1`
+					source_router=$4 
+				elif [ $# -eq 3 ] 
+				then
+					num_routers=$3
+					source_router=1
+					origin_port=2000				
+				else
+					banner
+					exit
+				fi
+				for ((i=1; i<=$num_routers; i++)) ;do
+				    
+					dport=`expr $origin_port + $i`
+					router_id=`expr $i + $source_router - 1`
+					echo "++++++++++++++++"
+					echo " start router=$router_id port=$dport num=$i"
+				    /usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $router_id &
+					sleep 5
+				done
+				exit
+				;;
+		*)
+			banner
+			exit
+			;;
+	esac
+else
+	#check if license server is running
+	license_process=`ps -ef|grep "[l]icensed"|awk '{print $2}'`
+	if [[ "$license_process" == "" ]];
+		then
+		if [[ $CHANGE_MAC == 1 ]];
+		then
+			sudo ifconfig eth0 hw ether $LICENSED_MAC
+		fi
+		echo
+		echo "Starting license server"
+		sudo /opt/cisco/license/scripts/start_ld
+		sudo /opt/cisco/license/scripts/install_lf /opt/cisco/license/scripts/onePK-iol-license-POD19.txt
+		sudo ifconfig eth0 hw ether $CURRENT_MAC
+	fi
+	#CHECK PARAMETERS
+	case $2 in
+		"-id") 
+				# iou_start -l -id <id> [<conf_file>|--init]
+				if [[ $CHANGE_MAC == 1 ]];
+				then
+					sudo ifconfig eth0 hw ether $LICENSED_MAC
+				fi
+				if [[ $# == 3 ]];
+				then
+					nvram_file="nvram"`printf "%05d" $3`
+					if [ -f $nvram_file ];
+					then
+						$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L $3 &
+					else
+						initial_config $3
+						$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L -c $3.cfg $3 &
+					fi
+				elif [[ $# == 4 ]];
+				then
+					#check whether there is a nvram file
+					#if there is no nvram file initialize config
+					nvram_file="nvram"`printf "%05d" $3`
+#					if [ -f $nvram_file ];
+#					then
+#						echo
+#						echo "Router $3 already exists. Configuration file not applied"
+#						echo
+#						$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L $3 &
+					if [ ! -f $4 ];
+					then
+						echo "File $4 does not exist"
+						echo "starting router without configuration file"
+						$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L $3 &
+					else
+						$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L -c $4 $3 &
+					fi
+				else
+					banner
+					exit
+				fi
+				sleep 5
+				if [[ $CHANGE_MAC == 1 ]];
+				then
+					sudo ifconfig eth0 hw ether $CURRENT_MAC
+				fi
+				exit
+				;;
+		"-range")
+				# iou_start -l -range [-c] <num_routers> <source_router> 
+				if [[ "$3" != "-c" ]];
+				then
+					if [[ $# == 4 ]];
+					then
+						source_router=$4
+						num_routers=$3
+					elif [[ $# == 3 ]];
+					then	
+						num_routers=$3
+						source_router=1 
+					else
+						banner
+						exit
+					fi
+					if [[ $CHANGE_MAC == 1 ]];
+					then
+						sudo ifconfig eth0 hw ether $LICENSED_MAC
+					fi
+					for ((i=1; i<=$num_routers; i++)) ;
+					do
+						router_id=`expr $i + $source_router - 1`
+						nvram_file="nvram"`printf "%05d" $router_id`
+						if [ -f $nvram_file ];
+						then
+							$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L $router_id &
+						else
+							initial_config $router_id
+							$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L -c $router_id.cfg $router_id &
+						fi	
+						echo "iou_start -l -range <number>: #num_routers=$num_routers #i=$i #router_id=$router_id"
+						sleep 5
+					done
+					if [[ $CHANGE_MAC == 1 ]];
+					then
+						sudo ifconfig eth0 hw ether $CURRENT_MAC
+					fi
+				else
+					if [[ "$3" == "-c" ]];
+					then
+						init=0
+					elif [[ "$3" == "--init" ]];
+					then
+						init=1
+					else
+						banner
+						exit
+					fi
+					if [[ $# == 5 ]];
+					then
+						source_router=$5
+						num_routers=$4
+					elif [[ $# == 4 ]];
+					then	
+						num_routers=$4
+						source_router=1 
+					else
+						banner
+						exit
+					fi
+					if [[ $CHANGE_MAC == 1 ]];
+					then
+						sudo ifconfig eth0 hw ether $LICENSED_MAC
+					fi
+					for ((i=1; i<=$num_routers; i++)) ;
+					do
+						router_id=`expr $i + $source_router - 1`
+						if [[ $init == 0 ]];
+						then
+							CONFIG_PATH="./"
+						else
+							initial_config $router_id
+							CONFIG_PATH="/tmp/iou_initial_config/"
+						fi
+						if [ -f $CONFIG_PATH$router_id.cfg ];
+						then
+							$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L -c "$CONFIG_PATH$router_id.cfg" $router_id &
+							sleep 5
+						else
+							echo "File $CONFIG_PATH$router_id.cfg does not exist"
+							echo "starting router without configuration file"
+							$IMAGE -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -L $router_id &
+							sleep 5
+						fi							
+					done
+					if [[ $CHANGE_MAC == 1 ]];
+					then
+						sudo ifconfig eth0 hw ether $CURRENT_MAC
+					fi
+					exit
+				fi
+				;;
+		*)
+			banner
+			exit
+			;;
+	esac	
+fi

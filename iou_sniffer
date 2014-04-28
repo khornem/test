@@ -1,0 +1,133 @@
+#!/bin/bash
+
+
+#Crea un fichero de captura de sniffer del enlace solicitado
+#se ejecuta en el directorio donde se encuentra el NETMAP
+#el parámetro es <router>:<enlace>
+
+
+#Uso
+# iou_sniffer <router_id>:<link> [-w|-t]
+# By default creates a pcap file in /tmp/ named:
+#    R<router_id>_link
+# Options:
+#  -w: launch wireshark
+#  -t: launch tcpdump#
+
+
+#Returns value of the sniffer router
+#if the sniffer is not in the range 900-999 returns an error
+#if the link does not exis returns an error
+function getsniffer()
+{
+	local sniffer=`grep " $1" NETMAP|cut -d' ' -f 2|cut -d':' -f 1`
+
+	if [[ "$sniffer" == "" ]]
+	then
+		echo "1"
+		return 1
+	fi	
+	if [[ "$sniffer" != 9[0-9][0-9] ]]
+	then
+		echo "2"
+		return 2
+	fi
+	echo $sniffer
+}	
+		
+
+
+
+#test whether NETMAP file exist or not
+if [ ! -f NETMAP ];
+then
+	echo "NETMAP does not exist"
+	exit
+fi
+
+#Exit if the number of parameters is different from 1 or 2
+if [ $# != 1 ] && [ $# != 2 ];
+then
+	echo "Usage: iou_sniffer <router_id>:<link> [-w|-t]"
+	echo "By default creates a pcap file in /tmp/ named:"
+	echo "    R<router_id>_link"
+	echo " Options:"
+	echo "  -w: launch wireshark"
+	echo "  -t: launch tcpdump"
+	exit
+fi
+
+#Variable which stores type of capture
+# 0: local file
+# 1: wireshark
+# 2: tcpdump
+sniffer_capture=0
+#check second parameter
+if [[ $# == 2 ]];
+then
+	parameter=`echo $2|cut -f2 -d'-'`
+	case $parameter in
+		"w") 	sniffer_capture=1
+				#echo "wireshark"
+				;;
+		"t") 	sniffer_capture=2
+				#echo "tcpdump"
+				;;
+		*) 		echo "Error in parameter $2"
+				echo "Usage: iou_sniffer <router_id>:<link> [-w|-t]"
+				echo "By default creates a pcap file in /tmp/ named:"
+				echo "    R<router_id>_link"
+				echo " Options:"
+				echo "  -w: launch wireshark"
+				echo "  -t: launch tcpdump"
+				exit
+				;;
+	esac
+fi
+
+
+sniffer=`getsniffer $1`
+
+#echo "sniffer = $sniffer"
+
+if [[ $sniffer == 1 ]];
+then
+	echo "Error: link $1 does not exist"
+	exit
+elif [[ $sniffer == 2 ]];
+then
+	echo "Error: there is no sniffer defined in 900-999 range"
+	exit
+#else
+#	echo "Valid sniffer router found: $sniffer"
+fi
+router=`echo $1|cut -f1 -d':'`
+#echo "router = $router"
+
+#check whether the target router is running or not
+if [[ `ps -ef|grep "[w]rapp.* $router"` == "" ]];
+then
+	if [[ `ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.* $router$"` == "" ]];
+		then
+		echo "Router $router not running"
+		exit
+	fi
+fi
+
+
+case $sniffer_capture in
+	0)	file=R`echo $1|sed 's/[\/|:]/_/g'`.pcap
+		echo "Save capture in file $file"
+		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer -w $file &
+		;;
+	1)	echo "Launching wireshark"
+		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer | wireshark -S -k -i - &
+		;;
+	2)	echo "Launching tcpdump"
+		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer | tcpdump -r -
+		;;
+esac
+
+	
+		
+	

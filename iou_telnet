@@ -1,0 +1,119 @@
+#!/bin/bash
+
+
+function banner (){
+	echo "Usage: iou_telnet [OPTIONS]"
+	echo
+	echo "  OPTIONS"
+	echo "  -id : identifier of the router"
+	echo "        <router_id> [<console port>]"
+	echo "  -range : several routers to be started at once"
+	echo "        <number of routers> [<origin_router> [<origin_console>]]"
+	echo 
+	echo "  console ports are only considered for iou routers"
+	echo
+}
+
+
+#check if the router is on and whether it is iou or iol
+# 0: router not running
+# 1: router is a iou router
+# 2: router is a iol router
+function is_iol (){
+	local router_id=$1
+	local process
+	local result
+	
+	process=`ps -ef|grep "[w]rapper.* $router_id$"`	
+	if [[ "$process" != "" ]];
+	then
+		result=1
+	else
+		process=`ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.* $router_id$"`
+		if [[ "$process" != "" ]];
+		then
+			result=2
+		else
+			result=0
+		fi
+	fi
+	
+	echo $result
+}	
+	
+
+
+
+DEBUG=1
+
+
+
+case $1 in
+	"-id")
+			device_type=$(is_iol $2)
+			router_id=$2
+			echo "device_type=$device_type"
+			if [[ $device_type == 1 ]];
+			then
+				if [[ $# == 3 ]];
+				then
+					dport=$3					
+				elif [[ $# == 2 ]];
+				then
+					dport=`expr 2000 + $router_id`
+				else
+					banner
+					exit
+				fi
+				gnome-terminal -t R$router_id -e "telnet 127.0.0.1 $dport"
+			elif [[ $device_type == 2 ]];
+			then
+				gnome-terminal -t R$router_id -e "ioucon $router_id"
+			else
+				banner
+				exit
+			fi	
+			;;
+	"-range")
+			if [[ $# == 4 ]];
+			then
+				source_router=$3
+				num_routers=$2
+				origin_port=`expr $4 - 1`
+			elif [ $# -eq 3 ]
+			then
+				num_routers=$2
+				origin_port=2000
+				source_router=$3 
+			elif [ $# -eq 2 ] 
+			then
+				num_routers=$2
+				source_router=1
+				origin_port=2000				
+			else
+				banner
+				exit
+			fi
+			for ((i=1; i<=$num_routers; i++)) ;do
+				router_id=`expr $i + $source_router - 1`				
+				device_type=$(is_iol $router_id)
+				echo "router=$router_id device_type=$device_type"
+				if [[ $device_type == 1 ]];
+				then
+					dport=`expr $origin_port + $router_id`
+					gnome-terminal -t R$router_id -e "telnet 127.0.0.1 $dport"
+				elif [[ $device_type == 2 ]];
+				then
+					gnome-terminal -t R$router_id -e "ioucon $router_id"
+				else
+					echo "++ERROR: router $router-id not running"
+				fi
+					
+			done
+			exit
+			;;
+	*)
+			banner
+			exit
+esac
+

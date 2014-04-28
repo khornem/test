@@ -1,0 +1,45 @@
+#!/bin/bash
+
+#Muestra los routers encendidos y su tipo
+
+
+
+#kill `ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $2}'`
+
+
+ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $NF}'>/tmp/iol_routers
+
+rm -f /tmp/iou_active
+cat /tmp/iol_routers | while read LINE
+do
+	echo $LINE ": $(tput setaf 1)linux 15.3$(tput sgr0)">>/tmp/iou_active
+done
+
+
+ps -ef|grep "[w]rapper-linux.*152-2.*"|awk '{print $NF}' >/tmp/iou_routers
+cat /tmp/iou_routers | while read LINE
+do
+	echo $LINE ": $(tput setaf 2)IOU router 15.2(2.3)T$(tput sgr0)">>/tmp/iou_active
+done
+
+ps -ef|grep "[w]rapper-linux.*tpgen.*"|awk '{print $NF}' >/tmp/iou_routers
+cat /tmp/iou_routers | while read LINE
+do
+	echo $LINE ": $(tput setaf 3)IOU PAGENT 12.4(20)$(tput sgr0)">>/tmp/iou_active
+done
+
+ps -ef|grep "[w]rapper-linux.*linuxl2.*"|awk '{print $NF}' >/tmp/iou_routers
+cat /tmp/iou_routers | while read LINE
+do
+	echo $LINE ": $(tput setaf 4)IOU switch 12.2$(tput sgr0)">>/tmp/iou_active
+done
+
+
+if [ -f  /tmp/iou_active ];
+then
+	cat /tmp/iou_active | sort -n 
+else
+	echo "$(tput setaf 1)$(tput bold)There are no routers currently running"
+fi
+echo "$(tput sgr0)"
+
