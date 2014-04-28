@@ -16,10 +16,10 @@ do
 done
 
 
-ps -ef|grep "[w]rapper-linux.*152-2.*"|awk '{print $NF}' >/tmp/iou_routers
+ps -ef|grep "[w]rapper-linux.*linux-l3.*"|awk '{print $NF}' >/tmp/iou_routers
 cat /tmp/iou_routers | while read LINE
 do
-	echo $LINE ": $(tput setaf 2)IOU router 15.2(2.3)T$(tput sgr0)">>/tmp/iou_active
+	echo $LINE ": $(tput setaf 2)IOU router $(tput sgr0)">>/tmp/iou_active
 done
 
 ps -ef|grep "[w]rapper-linux.*tpgen.*"|awk '{print $NF}' >/tmp/iou_routers
