@@ -1,0 +1,46 @@
+#!/bin/bash
+
+
+
+
+
+
+
+function banner (){
+	echo "Usage: iou_connect <router>:iface <tap"
+	echo
+	echo "Device type:"
+	echo "	-r : iou router"
+	echo "	-s : l2iou switch"
+	echo "	-p : iou pagent"
+	echo "	-l : iol router"
+	echo 
+	echo "	OPTIONS"
+	echo "	-id : identifier of the router to be started"
+	echo "		-[rsp]: <router_id> [console port]"
+	echo "		-l: <router_id> [<configuration_file>"
+	echo "	-range : several routers to be started at once"
+	echo "		-[rsp]: <number of routers> [<origin_router> [<origin_console>]]"
+	echo "		-l: [-c] <number of routers> [<origin_router> [<origin_console>]]"
+}
+
+#Returns value of the tap router
+#if the tap is not in the range 800-899 returns an error
+#if the link does not exis returns an error
+function gettap_router()
+{
+	local tap_router=`grep " $1" NETMAP|cut -d' ' -f 1|cut -d':' -f 1`
+
+	if [[ "$tap_router" == "" ]]
+	then
+		echo "1"
+		return 1
+	fi	
+	if [[ "$tap_router" != 8[0-9][0-9] ]]
+	then
+		echo "2"
+		return 2
+	fi
+	echo $tap_router
+}	
+
