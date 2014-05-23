@@ -7,7 +7,7 @@
 
 
 function banner (){
-	echo "Usage: iou_connect <router>:iface <tap"
+	echo "Usage: iou_connect <router>:iface <tap> [<ip address>/<mask>]"
 	echo
 	echo "Device type:"
 	echo "	-r : iou router"
@@ -43,4 +43,64 @@ function gettap_router()
 	fi
 	echo $tap_router
 }	
+
+
+
+
+#test whether NETMAP file exist or not
+if [ ! -f NETMAP ];
+then
+	echo "NETMAP does not exist"
+	exit
+fi
+
+
+
+
+#Exit if the number of parameters is different from 1 or 2
+if [ $# != 2 ] && [ $# != 3 ];
+then
+    banner
+	exit
+fi
+
+#check NETMAP 
+router=`gettap_router $1`
+if [[ $router == 1 ]];
+then
+	echo "Error: link $1 does not exist"
+	exit
+elif [[ $sniffer == 2 ]];
+then
+	echo "Error: there is no router defined in 800-899 range"
+	exit
+fi
+
+#check tap interface
+tap_interface=`ip link | grep $2`
+if [[ $tap_interface == "" ]];
+then
+    echo "Interface $2 does not exist. Creating tap interface"
+    if [ $# == 2 ];
+    then
+        ioltuncfg --create --int=$2 --up
+    else
+        ioltuncfg --create --int=$2 --add=$3 --up
+    fi
+else
+    echo "Interface $2 exists"
+fi
+
+iou2net.pl -t $2 -p $router &
+
+
+
+
+
+
+
+
+
+
+
 
