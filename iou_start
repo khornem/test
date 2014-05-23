@@ -1,6 +1,7 @@
 #!/bin/bash
 
-IOU_IMAGE="/usr/local/bin/i86bi_linux-adventerprisek9-ms.152-2"
+#IOU_IMAGE="/usr/local/bin/i86bi_linux-adventerprisek9-ms.152-2"
+IOU_IMAGE="/usr/local/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
 IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
 #IOU_IMAGE="/usr/bin/i86bi_linux-adventerprisek9-ms"
 ETHERNET=2
@@ -8,19 +9,14 @@ SERIAL=4
 
 
 #"/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms -L -c 100.cfg 100 &"
-IOU_SWITCH_IMAGE="/usr/local/bin/i86bi_linuxl2-upk9-ms"
-IOU_PAGENT_IMAGE="/usr/local/bin/i86bi_linux-tpgen+ipbase-ms.PAGENT.4.7.0"
+#IOU_SWITCH_IMAGE="/usr/local/bin/i86bi_linuxl2-upk9-ms"
+#IOU_PAGENT_IMAGE="/usr/local/bin/i86bi_linux-tpgen+ipbase-ms.PAGENT.4.7.0"
+IOU_SWITCH_IMAGE="/usr/local/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
+IOU_PAGENT_IMAGE="/usr/local/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
 
 #sudo ifconfig eth0 hw ether e8:9a:8f:de:a5:aa
 #sudo ifconfig eth0  hw ether 00:50:56:87:49:E3 
 LICENSED_MAC="00:50:56:87:49:E3"
-
-#check current MAC
-#If there is no eth0 (ultrabooks) create a fake eth0 interface
-if [ "`ifconfig -a | grep eth0`" = "" ];
-	then
-	ioltuncfg --create --int=eth0
-fi
 CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
 
 if [[ "$CURRENT_MAC" != "LICENSED_MAC" ]];
