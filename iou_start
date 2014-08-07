@@ -92,7 +92,7 @@ function banner (){
 DEBUG=0
 
 
-NVRAM=128
+NVRAM=256
 IOL=0
 case $1 in
 	"-r")	IMAGE=$IOU_IMAGE
