@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#prueba
-
 
 #FUNCTION TO GENERATE INITAL CONFIGS. BY DEFAULT USES
 #LOCAL DIR TO STORE INITIAL CONFIG FILES
@@ -46,7 +44,7 @@ initial_config () {
 	
 	
 
-
+#banner used to show usage of the script
 function banner (){
 	echo "Usage: iou_start <device_type> [OPTIONS]"
 	echo
@@ -59,7 +57,7 @@ function banner (){
 	echo "	OPTIONS"
 	echo "	-id : identifier of the router to be started"
 	echo "		-[rsp]: <router_id> [console port]"
-	echo "		-l: <router_id> [<configuration_file>"
+	echo "		-l: <router_id> [<configuration_file>]"
 	echo "	-range : several routers to be started at once"
 	echo "		-[rsp]: <number of routers> [<origin_router> [<origin_console>]]"
 	echo "		-l: [-c] <number of routers> [<origin_router> [<origin_console>]]"
@@ -99,6 +97,17 @@ DEBUG=0
 
 
 
+#Modify constants
+#If there is a $HOME/.iou_startrc imports constants
+if [[ -f $HOME/.iou_startrc ]]
+then
+	. $HOME/.iou_startrc
+fi
+#if there is a local .iou_startrc file imports constants
+if [[ -f ./.iou_startrc ]]
+then
+	. ./.iou_startrc
+fi
 
 
 
@@ -115,18 +124,6 @@ then
 	CHANGE_MAC=1
 else
 	CHANGE_MAC=0
-fi
-
-#Check whether there is a .iou_startrc file in local dir
-#or in HOME dir.
-#If they exist import variables from it
-
-if [[ -f ./.iou_startrc ]]
-then
-	. ./.iou_startrc
-elif [[ -f $HOME/.iou_startrc ]]
-then
-	. $HOME/.iou_startrc
 fi
 
 
