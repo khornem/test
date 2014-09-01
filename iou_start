@@ -1,34 +1,11 @@
 #!/bin/bash
 
-#IOU_IMAGE="/usr/local/bin/i86bi_linux-adventerprisek9-ms.152-2"
-IOU_IMAGE="/usr/local/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
-IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
-#IOU_IMAGE="/usr/bin/i86bi_linux-adventerprisek9-ms"
-ETHERNET=2
-SERIAL=4
 
 
-#"/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms -L -c 100.cfg 100 &"
-#IOU_SWITCH_IMAGE="/usr/local/bin/i86bi_linuxl2-upk9-ms"
-#IOU_PAGENT_IMAGE="/usr/local/bin/i86bi_linux-tpgen+ipbase-ms.PAGENT.4.7.0"
-IOU_SWITCH_IMAGE="/usr/local/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
-IOU_PAGENT_IMAGE="/usr/local/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
 
-#sudo ifconfig eth0 hw ether e8:9a:8f:de:a5:aa
-#sudo ifconfig eth0  hw ether 00:50:56:87:49:E3 
-LICENSED_MAC="00:50:56:87:49:E3"
-CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
-
-if [[ "$CURRENT_MAC" != "LICENSED_MAC" ]];
-then
-	CHANGE_MAC=1
-else
-	CHANGE_MAC=0
-fi
-
-CONFIG_PATH="./"
-
-#Generates initial config file on /tmp/iou_init_config/
+#FUNCTION TO GENERATE INITAL CONFIGS. BY DEFAULT USES
+#LOCAL DIR TO STORE INITIAL CONFIG FILES
+#Use: initial_config <router_id>
 initial_config () {
 	
 	local i
@@ -88,31 +65,100 @@ function banner (){
 	echo "		-l: [-c] <number of routers> [<origin_router> [<origin_console>]]"
 }
 
- 
+
+
+#parameter definition
+
+#IOU default images
+IOU_IMAGE="/usr/local/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
+IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
+IOU_SWITCH_IMAGE="/usr/local/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
+IOU_PAGENT_IMAGE="/usr/local/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
+
+#router parameter definition
+#IOL and IOU router parameters
+IOU_ETH_INT=4
+IOU_SER_INT=2
+IOU_NVRAM=256
+#L2IOU switch parameters
+L2IOU_ETH_INT=10
+L2IOU_SER_INT=0
+L2IOU_NVRAM=256
+#PAGENT parameters
+PAGENT_ETH_INT=10
+PAGENT_SER_INT=4
+PAGENT_NVRAM=512
+
+ETHERNET=2
+SERIAL=4
+#backwards compatibility
+CONFIG_PATH="./"
+
+#script debug mode
 DEBUG=0
 
 
-NVRAM=256
+
+
+
+
+
+#sudo ifconfig eth0 hw ether e8:9a:8f:de:a5:aa
+#sudo ifconfig eth0  hw ether 00:50:56:87:49:E3 
+
+#Obtain eth0 mac address
+LICENSED_MAC="00:50:56:87:49:E3"
+CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
+
+if [[ "$CURRENT_MAC" != "LICENSED_MAC" ]];
+then
+	CHANGE_MAC=1
+else
+	CHANGE_MAC=0
+fi
+
+#Check whether there is a .iou_startrc file in local dir
+#or in HOME dir.
+#If they exist import variables from it
+
+if [[ -f ./.iou_startrc ]]
+then
+	. ./.iou_startrc
+elif [[ -f $HOME/.iou_startrc ]]
+then
+	. $HOME/.iou_startrc
+fi
+
+
+
+
+#Check which image type is goint to start and initialize
+#router/switch parameters
 IOL=0
 case $1 in
 	"-r")	IMAGE=$IOU_IMAGE
-			ETHERNET=4
-			SERIAL=2
+			ETHERNET=$IOU_ETH_INT
+			SERIAL=$IOU_SER_INT
+			NVRAM=$IOU_NVRAM
 			;;
 	"-s")	IMAGE=$IOU_SWITCH_IMAGE
-			ETHERNET=10
-			SERIAL=0
+			ETHERNET=$L2IOU_ETH_INT
+			SERIAL=$L2IOU_SER_INT
+			NVRAM=$L2IOU_NVRAM
 			;;
 	"-p")	IMAGE=$IOU_PAGENT_IMAGE
-			ETHERNET=10
-			SERIAL=4
-			NVRAM=512
+			ETHERNET=$PAGENT_ETH_INT
+			SERIAL=$PAGENT_SER_INT
+			NVRAM=$PAGENT_NVRAM
 			;;
 	"-l")	IMAGE=$IOL_IMAGE
-			ETHERNET=4
-			SERIAL=2
+			ETHERNET=$IOU_ETH_INT
+			SERIAL=$IOU_SER_INT
+			NVRAM=$IOU_NVRAM
 			IOL=1
-
+			;;
+	*)		banner
+			exit
 			;;
 esac
 
@@ -121,10 +167,21 @@ then
 	echo "DEBUG POINT 1: after initial case"
 	echo "IMAGE=$IMAGE"
 	echo "ETHERNET=$ETHERNET"
+	echo "SERIAL=$SERIAL"
 fi
 
 
+#Initialize NETIO_NETMAP variable
 export NETIO_NETMAP=./NETMAP
+
+
+
+
+
+	#statements
+
+
+
 
 
 #START IOU IMAGES
@@ -178,7 +235,14 @@ then
 					router_id=`expr $i + $source_router - 1`
 					echo "++++++++++++++++"
 					echo " start router=$router_id port=$dport num=$i"
-				    /usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $router_id &
+				    nvram_file="nvram"`printf "%05d" $3`
+					if [ -f $nvram_file ];
+					then
+						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $router_id &
+					else
+						initial_config $3
+						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $3.cfg -R -U $router_id &
+					fi
 					sleep 5
 				done
 				exit
