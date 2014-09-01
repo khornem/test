@@ -8,20 +8,6 @@
 
 function banner (){
 	echo "Usage: iou_connect <router>:iface <tap> [<ip address>/<mask>]"
-	echo
-	echo "Device type:"
-	echo "	-r : iou router"
-	echo "	-s : l2iou switch"
-	echo "	-p : iou pagent"
-	echo "	-l : iol router"
-	echo 
-	echo "	OPTIONS"
-	echo "	-id : identifier of the router to be started"
-	echo "		-[rsp]: <router_id> [console port]"
-	echo "		-l: <router_id> [<configuration_file>"
-	echo "	-range : several routers to be started at once"
-	echo "		-[rsp]: <number of routers> [<origin_router> [<origin_console>]]"
-	echo "		-l: [-c] <number of routers> [<origin_router> [<origin_console>]]"
 }
 
 #Returns value of the tap router
