@@ -1,0 +1,117 @@
+#!/bin/bash
+
+#  Version 1.2
+#  Post Installation script for 64bits systems
+#  Installs ia32-libs and makes symbolic link
+
+
+
+
+echo "*******************************************"
+echo "*                                         *"		
+echo "*     ia32-libs installation  v1.1        *"
+echo "*                                         *"		
+echo "*******************************************"
+echo
+echo
+
+echo "- Detecting user privileges"
+if [[ `whoami` != "root" ]];
+then
+	echo "Error: must be superuser to execute installation file"
+	exit
+fi  
+
+echo
+echo "- Detecting system architecture"
+if [[ `uname -m` == "x86_64" ]];
+then
+	system_type=64
+	echo "   64bits system detected"
+	case `lsb_release -sc` in
+		precise)
+			apt-get install ia32-libs
+			apt-get -f install
+			;;
+		* )
+			echo "  -Applying workaround"
+			echo "     -get ia32-libs-multiarch from raring repository"
+			wget http://es.archive.ubuntu.com/ubuntu/pool/universe/i/ia32-libs/ia32-libs-multiarch_20090808ubuntu35_i386.deb
+			echo "     -manually install ia32-libs-multiarch (error is expected and normal"
+			dpkg -i ia32-libs-multiarch_20090808ubuntu36_i386.deb
+			echo "     -add precise universe repository in order to install ia32-libs"
+			sleep 2
+			echo "#LINEA PARA LA INSTALACION DE IOU"
+			echo "deb http://es.archive.ubuntu.com/ubuntu/ precise universe" >> /etc/apt/sources.list
+			apt-get update
+			apt-get install ia32-libs
+			apt-get -f install
+			echo "remove precise respository"
+			sed -i 's;deb http://es.archive.ubuntu.com/ubuntu/ precise universe;;g' /etc/apt/sources.list
+			;;
+	esac
+else
+	system_type=32
+	echo "   32bits system detected"
+fi
+
+
+
+echo
+echo "- Create symbolic link to libcryto.so.4 library"
+
+libcrypto=`ls /lib/i386-linux-gnu/libcrypto* |tail -1`
+
+if [[ $libcrypto == "" ]];
+then
+	echo "  $(tput setaf 2)$(tput bold) libcrypto library not found $(tput sgr0)"
+	success=0;
+else
+	echo "  -Using $libcrypto"
+	ln -sv $libcrypto /lib/libcrypto.so.4
+fi
+
+
+
+#echo
+#echo "- Generating iou licence"
+#echo "[license]"> $HOME/.iourc
+#iou_keygen.py|grep " = " >>$HOME/.iourc
+#username=`echo $HOME|cut -d'/' -f3`
+#chown $username:$username $HOME/.iourc
+
+echo
+echo "- Test iou"
+echo "1:0/0">NETMAP
+iou_start -r -id 1
+process=`iou_routers|grep "^1 :"`
+iou_kill -a
+rm -rf /tmp/netio*
+rm -rf /tmp/iol*
+rm -rf /tmp/iou*
+rm -rf 1.cfg
+rm -rf nvram0*
+
+echo
+echo
+echo
+if [[ $process == "" ]];
+then
+	echo "$(tput setaf 1)$(tput bold)Installation failed$(tput sgr0)"
+else
+	echo "$(tput bold)Installation succeeded$(tput sgr0)"
+fi
+
+
+echo
+echo
+
+
+
+
+
+
+
+
+
+
