@@ -68,10 +68,10 @@ function banner (){
 #parameter definition
 
 #IOU default images
-IOU_IMAGE="/usr/local/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
+IOU_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
 IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
-IOU_SWITCH_IMAGE="/usr/local/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
-IOU_PAGENT_IMAGE="/usr/local/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
+IOU_SWITCH_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
+IOU_PAGENT_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
 
 #router parameter definition
 #IOL and IOU router parameters
@@ -98,6 +98,11 @@ DEBUG=0
 
 
 #Modify constants
+#If there is a /etc/iou_startrc imports constants
+if [[ -f /etc/iou_startrc ]]
+then
+	. /etc/iou_startrc
+fi
 #If there is a $HOME/.iou_startrc imports constants
 if [[ -f $HOME/.iou_startrc ]]
 then
@@ -117,7 +122,10 @@ fi
 
 #Obtain eth0 mac address
 LICENSED_MAC="00:50:56:87:49:E3"
-CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
+if [[ `ifconfig|grep eth0` != "" ]]
+then
+	CURRENT_MAC=`ifconfig eth0 |grep eth0|awk '{print $5}'`
+fi
 
 if [[ "$CURRENT_MAC" != "LICENSED_MAC" ]];
 then
@@ -237,8 +245,8 @@ then
 					then
 						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $router_id &
 					else
-						initial_config $3
-						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $3.cfg -R -U $router_id &
+						initial_config $router_id
+						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $router_id.cfg -R -U $router_id &
 					fi
 					sleep 5
 				done

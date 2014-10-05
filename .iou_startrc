@@ -1,20 +1,20 @@
+#Modified 05/10/14 13:43:22
 #IOU default images
-IOU_IMAGE="/opt/cisco/iou/bin/i86bi_linux-adventerprisek9-ms"
+IOU_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
 IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
-IOU_SWITCH_IMAGE="/usr/local/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
-IOU_PAGENT_IMAGE="/usr/local/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
+IOU_SWITCH_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
+IOU_PAGENT_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
 
 #router parameter definition
 #IOL and IOU router parameters
-IOU_ETH_INT=2
-IOU_SER_INT=6
-IOU_NVRAM=128
+IOU_ETH_INT=4
+IOU_SER_INT=2
+IOU_NVRAM=256
 #L2IOU switch parameters
-L2IOU_ETH_INT=10
+L2IOU_ETH_INT=15
 L2IOU_SER_INT=0
 L2IOU_NVRAM=256
 #PAGENT parameters
 PAGENT_ETH_INT=10
 PAGENT_SER_INT=4
 PAGENT_NVRAM=512
-
