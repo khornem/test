@@ -1,0 +1,371 @@
+#!/bin/bash
+
+
+########################################################################
+#  Author: Miguel Gonzalez                                             #
+#  Version: 1.0                                                        #
+#  Date: 05/10/2014                                                    #
+#                                                                      #
+#  Usage: iou_config                                                   #
+#                                                                      #
+#  Creates or modifies iou_startrc files which control parameters used #
+#  by iou_start script.                                                #
+#                                                                      #
+#######################################################################
+
+
+
+
+#Directory where iou images are stored
+BINDIR="/opt/cisco/iou/bin"
+GEOMETRY="40 80"
+
+
+
+#Build string with options based on files listed on directory /opt/cisco/iou/bin
+build_ios_dialog_string() {
+    local value=""
+    local numfiles=0
+    local tmp=$(tempfile)
+    ls $BINDIR/i86* > $tmp
+    while read line 
+    do
+        if [[ "$1" == "$line" ]]
+        then
+            value="$value $line \"\" on"
+        else
+            value="$value $line \"\" off"
+        fi
+        ((numfiles++))
+    done  <$tmp
+    value="$numfiles $value"
+    rm -f $tmp
+    echo $value
+}
+
+
+
+
+
+#DEFAULT PARAMETERS
+#IOU default images
+IOU_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin"
+IOL_IMAGE="/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms"
+IOU_SWITCH_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin"
+IOU_PAGENT_IMAGE="/opt/cisco/iou/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin"
+
+#router parameter definition
+#IOL and IOU router parameters
+IOU_ETH_INT=4
+IOU_SER_INT=2
+IOU_NVRAM=256
+#L2IOU switch parameters
+L2IOU_ETH_INT=10
+L2IOU_SER_INT=0
+L2IOU_NVRAM=256
+#PAGENT parameters
+PAGENT_ETH_INT=10
+PAGENT_SER_INT=4
+PAGENT_NVRAM=512
+
+
+
+#SCRIPT VARIABLES DEFINITION
+#file used to store dialog return values
+option_file=$(tempfile -p iouconfig -s option)
+#configuration files
+global_conf_file="/etc/iou_startrc"
+home_conf_file="$HOME/.iou_startrc"
+local_conf_file="$PWD/.iou_startrc"
+#string to store final configuration file
+config_file_tmp=$(tempfile -p iouconfig -s file) 
+#state machine state
+fsm_state=0
+fsm_suboption=0
+
+
+
+
+#First of all, select which file is going to be modified or created. This option
+#is only asked once. All changes done will be related to this file
+dialog --radiolist "Select file to configure (global config needs superuser permisions)" $GEOMETRY 3 $global_conf_file "" off  $home_conf_file "" off  $local_conf_file "" on 2>$option_file
+if [[ $? != 0 ]]
+then
+    rm -f $option_file
+    rm -f $config_file_tmp
+    exit
+fi
+
+
+config_file=$(cat $option_file)
+
+
+#Initialize temporary config file with current date and time
+date +"#Modified %x %T" > $config_file_tmp
+#if chosen file exists then load parameters of that file
+if [ -f $config_file ]
+then
+    date +"#Modified %x %T" > $config_file_tmp
+    cat $config_file | awk '/#Modified.*$/ {next} 1'>> $config_file_tmp
+    . $config_file  
+else
+    echo "#IOU default images" >> $config_file_tmp
+    echo "IOU_IMAGE=\"/opt/cisco/iou/bin/i86bi-linux-l3-adventerprisek9-15.4.1T.bin\"" >> $config_file_tmp
+    echo "IOL_IMAGE=\"/opt/cisco/iol/bin/i86bi_linux-adventerprisek9_xsi-ms\"" >> $config_file_tmp
+    echo "IOU_SWITCH_IMAGE=\"/opt/cisco/iou/bin/i86bi-linux-l2-adventerprisek9-15.1a.bin\"" >> $config_file_tmp
+    echo "IOU_PAGENT_IMAGE=\"/opt/cisco/iou/bin/i86bi-linux-l3-tpgen-adventerprisek9-12.4.bin\"" >> $config_file_tmp
+    echo "" >> $config_file_tmp
+    echo "#router parameter definition" >> $config_file_tmp
+    echo "#IOL and IOU router parameters" >> $config_file_tmp
+    echo "IOU_ETH_INT=4" >> $config_file_tmp
+    echo "IOU_SER_INT=2" >> $config_file_tmp
+    echo "IOU_NVRAM=256" >> $config_file_tmp
+    echo "#L2IOU switch parameters" >> $config_file_tmp
+    echo "L2IOU_ETH_INT=10" >> $config_file_tmp
+    echo "L2IOU_SER_INT=0" >> $config_file_tmp
+    echo "L2IOU_NVRAM=256" >> $config_file_tmp
+    echo "#PAGENT parameters" >> $config_file_tmp
+    echo "PAGENT_ETH_INT=10" >> $config_file_tmp
+    echo "PAGENT_SER_INT=4" >> $config_file_tmp
+    echo "PAGENT_NVRAM=512" >> $config_file_tmp
+fi
+
+
+
+
+while true
+do
+    case $fsm_state in
+        0)
+            #
+            dialog --title "Main menu" --menu "Select which type of IOU iou parameters you want to modify" $GEOMETRY 6 \
+                1 "Change IOU L3 router parameters" \
+                2 "Change IOU L2 switch parameters" \
+                3 "Change IOU L3 PAGENT parameters" \
+                4 "Show current configuration" \
+                8 "Exit" \
+                9 "Exit & save" 2>$option_file
+            #Change state machine status
+            if [[ $? == 0 ]]
+            then    
+                fsm_state=$(cat $option_file)
+            fi
+            ;;
+        1)
+            dialog --title "IOU ROUTER" --menu "Select Parameter to change on IOU router" $GEOMETRY 7 \
+                1 "IOU_IMAGE              = $IOU_IMAGE" \
+                2 "Nº of Eth linecards    = $IOU_ETH_INT" \
+                3 "Nº of Serial linecards = $IOU_SER_INT" \
+                4 "NVRAM                  = $IOU_NVRAM" \
+                5 "UP" \
+                8 "Exit" \
+                9 "Exit & save" 2>$option_file
+            fsm_suboption=$(cat $option_file)
+            case $fsm_suboption in
+                1)
+                    #Select IOU_IMAGE from all images in /opt/cisco/iou/bin directory
+                    #Build options string with all Images in BINDIR 
+                    dialog_options=$(build_ios_dialog_string $IOU_IMAGE)
+                    dialog --title "IOU ROUTER" --radiolist "select IOU_IMAGE" $GEOMETRY $dialog_options 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_IMAGE=$(cat $option_file)
+                        sed -i "s;IOU_IMAGE=.*;IOU_IMAGE=\"$IOU_IMAGE\";g" $config_file_tmp
+                    fi
+                    ;;
+                2)
+                    #Change number of ethernet interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "IOU ROUTER" --inputbox "Insert number of ethernet linecards (4 interfaces per linecard)" $GEOMETRY $IOU_ETH_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_ETH_INT=$(cat $option_file)
+                        sed -i "s/IOU_ETH_INT=.*/IOU_ETH_INT=$IOU_ETH_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                3)
+                    #Change number of serial interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "IOU ROUTER" --inputbox "Insert number of serial linecards (4 interfaces per linecard)"$GEOMETRY $IOU_SER_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_SER_INT=$(cat $option_file)
+                        sed -i "s/IOU_SER_INT=.*/IOU_SER_INT=$IOU_SER_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                4)
+                    #Change NVRAM value
+                    #It does not check at the moment that the value is valid
+                    dialog --title "IOU ROUTER" --inputbox "Insert NVRAM size" $GEOMETRY $IOU_NVRAM 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_NVRAM=$(cat $option_file)
+                        sed -i "s/IOU_NVRAM=.*/IOU_NVRAM=$IOU_NVRAM/g" $config_file_tmp
+                    fi
+                    ;;
+                5)
+                    fsm_state=0
+                    ;;
+                8|9)
+                    fsm_state=$fsm_suboption
+                    ;;
+            esac
+            ;;
+
+        2)
+            dialog --title "L2IOU SWITCH" --menu "Select Parameter to change on IOU switch" $GEOMETRY 7 \
+                1 "IOU_SWITCH_IMAGE       = $IOU_SWITCH_IMAGE" \
+                2 "Nº of Eth linecards    = $L2IOU_ETH_INT" \
+                3 "Nº of Serial linecards = $L2IOU_SER_INT" \
+                4 "NVRAM                  = $L2IOU_NVRAM" \
+                5 "UP" \
+                8 "Exit" \
+                9 "Exit & save" 2>$option_file
+            fsm_suboption=$(cat $option_file)
+            case $fsm_suboption in
+                1)
+                    #Select IOU_SWITCH_IMAGE from all images in /opt/cisco/iou/bin directory
+                    #Build options string with all Images in BINDIR 
+                    dialog_options=$(build_ios_dialog_string $IOU_SWITCH_IMAGE)
+                    dialog --title "L2IOU SWITCH" --radiolist "select IOU_SWITCH_IMAGE" $GEOMETRY $dialog_options 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_SWITCH_IMAGE=$(cat $option_file)
+                        sed -i "s;IOU_SWITCH_IMAGE=.*;IOU_SWITCH_IMAGE=\"$IOU_SWITCH_IMAGE\";g" $config_file_tmp
+                    fi
+                    ;;
+                2)
+                    #Change number of ethernet interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "L2IOU SWITCH" --inputbox "Insert number of ethernet linecards (4 interfaces per linecard)" $GEOMETRY $L2IOU_ETH_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        L2IOU_ETH_INT=$(cat $option_file)
+                        sed -i "s/L2IOU_ETH_INT=.*/L2IOU_ETH_INT=$L2IOU_ETH_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                3)
+                    #Change number of serial interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "L2IOU SWITCH" --inputbox "Insert number of serial linecards (4 interfaces per linecard)" $GEOMETRY $L2IOU_SER_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        L2IOU_SER_INT=$(cat $option_file)
+                        sed -i "s/L2IOU_SER_INT=.*/L2IOU_SER_INT=$L2IOU_SER_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                4)
+                    #Change NVRAM value
+                    #It does not check at the moment that the value is valid
+                    dialog --title "L2IOU SWITCH" --inputbox "Insert NVRAM size" $GEOMETRY $L2IOU_NVRAM 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        L2IOU_NVRAM=$(cat $option_file)
+                        sed -i "s/L2IOU_NVRAM=.*/L2IOU_NVRAM=$L2IOU_NVRAM/g" $config_file_tmp
+                    fi
+                    ;;
+                5)
+                    fsm_state=0
+                    ;;
+                8|9)
+                    fsm_state=$fsm_suboption
+                    ;;
+            esac
+            ;;
+
+
+        3)
+            dialog --title "PAGENT router"  --menu "Select Parameter to change on IOU PAGENT ROUTER" $GEOMETRY 7 \
+                1 "IOU_PAGENT_IMAGE       = $IOU_PAGENT_IMAGE" \
+                2 "Nº of Eth linecards    = $PAGENT_ETH_INT" \
+                3 "Nº of Serial linecards = $PAGENT_SER_INT" \
+                4 "NVRAM                  = $PAGENT_NVRAM" \
+                5 "UP" \
+                8 "Exit" \
+                9 "Exit & save" 2>$option_file
+            fsm_suboption=$(cat $option_file)
+            case $fsm_suboption in
+                1)
+                    #Select IOU_PAGENT_IMAGE from all images in /opt/cisco/iou/bin directory
+                    #Build options string with all Images in BINDIR 
+                    dialog_options=$(build_ios_dialog_string $IOU_PAGENT_IMAGE)
+                    dialog --title "PAGENT router" --radiolist "select IOU_PAGENT_IMAGE" $GEOMETRY $dialog_options 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        IOU_PAGENT_IMAGE=$(cat $option_file)
+                        sed -i "s;IOU_PAGENT_IMAGE=.*;IOU_PAGENT_IMAGE=\"$IOU_PAGENT_IMAGE\";g" $config_file_tmp
+                    fi
+                    ;;
+                2)
+                    #Change number of ethernet interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "PAGENT router" --inputbox "Insert number of ethernet linecards (4 interfaces per linecard)" $GEOMETRY $PAGENT_ETH_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        PAGENT_ETH_INT=$(cat $option_file)
+                        sed -i "s/PAGENT_ETH_INT=.*/PAGENT_ETH_INT=$PAGENT_ETH_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                3)
+                    #Change number of serial interfaces
+                    #It does not check at the moment that the value is valid
+                    dialog --title "PAGENT router" --inputbox "Insert number of serial linecards (4 interfaces per linecard)" $GEOMETRY $PAGENT_SER_INT 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        PAGENT_SER_INT=$(cat $option_file)
+                        sed -i "s/PAGENT_SER_INT=.*/PAGENT_SER_INT=$PAGENT_SER_INT/g" $config_file_tmp
+                    fi
+                    ;;
+                4)
+                    #Change NVRAM value
+                    #It does not check at the moment that the value is valid
+                    dialog --title "PAGENT router" --inputbox "Insert NVRAM size" $GEOMETRY $PAGENT_NVRAM 2> $option_file
+                    if [[ $? == 0 ]]
+                    then
+                        PAGENT_NVRAM=$(cat $option_file)
+                        sed -i "s/PAGENT_NVRAM=.*/PAGENT_NVRAM=$PAGENT_NVRAM/g" $config_file_tmp
+                    fi
+                    ;;
+                5)
+                    fsm_state=0
+                    ;;
+                8|9)
+                    fsm_state=$fsm_suboption
+                    ;;
+            esac
+            ;;
+
+        4)
+            dialog --textbox $config_file_tmp $GEOMETRY
+            fsm_state=0
+            ;;
+
+        8)
+            #EXIT but ask first
+            dialog --title "Exit" --yesno "Exit without saving configuration" 5 80
+            if [[ $? == 0 ]]
+            then
+                break
+            else
+                fsm_state=0
+            fi
+            ;;
+        9)
+            #Save and exit
+            dialog --title "Save and Exit" --yesno "Save and exit" 5 80
+            if [[ $? == 0 ]]
+            then
+                cp $config_file_tmp $config_file
+                break
+            else
+                fsm_state=0
+            fi
+            ;;
+    esac
+done
+                    
+
+
+#Clean temporary files
+rm -f $option_file
+rm -f $option_file_tmp
