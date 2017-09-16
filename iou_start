@@ -199,14 +199,14 @@ then
 					nvram_file="nvram"`printf "%05d" $3`
 					if [ -f $nvram_file ];
 					then
-						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $3 &
+						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R  $3 &
 					else
 						initial_config $3
-						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $3.cfg -R -U $3 &
+						/usr/local/bin/wrapper-linux -m $IMAGE -p `expr $3 + 2000` -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $3.cfg -R  $3 &
 					fi
 				elif [[ $# == 4 ]];
 				then
-					/usr/local/bin/wrapper-linux -m $IMAGE -p $4 -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $3 &
+					/usr/local/bin/wrapper-linux -m $IMAGE -p $4 -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R  $3 &
 				else
 					banner
 					exit
@@ -243,10 +243,10 @@ then
 				    nvram_file="nvram"`printf "%05d" $3`
 					if [ -f $nvram_file ];
 					then
-						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R -U $router_id &
+						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -R  $router_id &
 					else
 						initial_config $router_id
-						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $router_id.cfg -R -U $router_id &
+						/usr/local/bin/wrapper-linux -m $IMAGE -p $dport -- -e $ETHERNET -s $SERIAL -n $NVRAM -m 256 -c $router_id.cfg -R  $router_id &
 					fi
 					sleep 5
 				done
