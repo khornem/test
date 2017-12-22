@@ -38,7 +38,7 @@ case $1 in
 			kill `ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $2}'`
 			exit
 			;;
-	"-rid")	process=`ps -ef|grep "[w]rapper-linux.* -U $2$"|awk '{print $2}'`
+	"-rid")	process=`ps -ef|grep "[w]rapper-linux.* -R.* $2$"|awk '{print $2}'`
 			if [[ $process == "" ]];
 			then
 				process=`ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.* $2$"|awk '{print $2}'`
@@ -121,7 +121,7 @@ for ((i=0; i<$num_routers ; i++)) ;do
 	  then
 	  	echo "+++ DEBUG: option = -rn"
 	  fi	
-		process=`ps -ef|grep "[w]rapper.* -U $target_router$"|awk '{print $2}' `
+		process=`ps -ef|grep "[w]rapper.* -R.* $target_router$"|awk '{print $2}' `
 	 	if [[ $DEBUG == 1 ]];
 	  then
 	  	echo "+++ DEBUG: iou router process = $process"
