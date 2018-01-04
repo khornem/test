@@ -118,13 +118,13 @@ fi
 case $sniffer_capture in
 	0)	file=R`echo $1|sed 's/[\/|:]/_/g'`.pcap
 		echo "Save capture in file $file"
-		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer -w $file &
+		sniffer -p -l "ether" $sniffer -w $file &
 		;;
 	1)	echo "Launching wireshark"
-		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer | wireshark -S -k -i - &
+		sniffer -p -l "ether" $sniffer | wireshark -S -k -i - &
 		;;
 	2)	echo "Launching tcpdump"
-		/opt/cisco/iol/util/sniffer -p -l "ether" $sniffer | tcpdump -r -
+		sniffer -p -l "ether" $sniffer | tcpdump -r -
 		;;
 esac
 
