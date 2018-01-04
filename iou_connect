@@ -67,11 +67,11 @@ tap_interface=`ip link | grep $2`
 if [[ $tap_interface == "" ]];
 then
     echo "Interface $2 does not exist. Creating tap interface"
-    if [ $# == 2 ];
+    tunctl -t $2
+    ifconfig $2 up
+    if [ $# == 3 ];
     then
-        ioltuncfg --create --int=$2 --up
-    else
-        ioltuncfg --create --int=$2 --add=$3 --up
+	ifconfig $2 $3
     fi
 else
     echo "Interface $2 exists"
