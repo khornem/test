@@ -1,52 +1,70 @@
 #!/bin/bash
 
-#Muestra los routers encendidos y su tipo
+
+########################################################################
+#  Author: Miguel Gonzalez                                             #
+#  Version: 1.1                                                        #
+#  Date: 04/01/2018                                                    #
+#                                                                      #
+#  Usage: iou_routers                                                  #
+#                                                                      #
+#  Checks which routers are currently running on host machine          #
+#                                                                      #
+#######################################################################
 
 
 
-#kill `ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $2}'`
+
+# create temporary files
+iol=$(mktemp)
+iou=$(mktemp)
+iou_active=$(mktemp)
 
 #check all IOL routers
-ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $NF}'>/tmp/iol_routers
+ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $NF}'> $iol
 
-rm -f /tmp/iou_active
-cat /tmp/iol_routers | while read LINE
+cat $iol | while read LINE
 do
-	echo $LINE ": $(tput setaf 1)linux 15.3$(tput sgr0)">>/tmp/iou_active
+	echo $LINE ": $(tput setaf 1)linux 15.3$(tput sgr0)">>$iou_active
 done
 
 #check all IOU routers
-#iou images with linux-l3 format
-ps -ef|grep "[w]rapper-linux.*linux-l3.*"|awk '{print $NF}' >/tmp/iou_routers
+#iou images with linux-l3 format and not tpgen
+ps -ef|grep "[w]rapper-linux.*linux-l3-[^t].*"|awk '{print $NF}' > $iou
 #iou images with previous format
-ps -ef|grep "[w]rapper-linux.*i86bi_linux-adventerprisek9-ms.*"|awk '{print $NF}' >>/tmp/iou_routers
+ps -ef|grep "[w]rapper-linux.*i86bi_linux-adventerprisek9-ms.*"|awk '{print $NF}' >> $iou
 
-
-
-
-cat /tmp/iou_routers | while read LINE
+# add lines to active router
+cat $iou | while read LINE
 do
-	echo $LINE ": $(tput setaf 2)IOU router "`ps -ef|grep "[w]rapper-linux.*linux-l3.* $LINE$"|awk '{print $10}'|cut -d'-' -f5|sed 's/.bin//g'` "$(tput sgr0)">>/tmp/iou_active
+	echo $LINE ": $(tput setaf 2)IOU router "`ps -ef|grep "[w]rapper-linux.*linux-l3.* $LINE$"|awk '{print $10}'|cut -d'-' -f5|sed 's/.bin//g'` "$(tput sgr0)">> $iou_active
 done
 
-ps -ef|grep "[w]rapper-linux.*tpgen.*"|awk '{print $NF}' >/tmp/iou_routers
-cat /tmp/iou_routers | while read LINE
+# check pagent routers 
+ps -ef|grep "[w]rapper-linux.*tpgen.*"|awk '{print $NF}' > $iou
+cat $iou | while read LINE
 do
-	echo $LINE ": $(tput setaf 3)IOU PAGENT 12.4(20)$(tput sgr0)">>/tmp/iou_active
+	echo $LINE ": $(tput setaf 3)IOU PAGENT 12.4(20)$(tput sgr0)">> $iou_active
 done
 
-ps -ef|grep "[w]rapper-linux.*linux-l2.*"|awk '{print $NF}' >/tmp/iou_routers
-cat /tmp/iou_routers | while read LINE
+# check iou switches
+ps -ef|grep "[w]rapper-linux.*linux-l2.*"|awk '{print $NF}' > $iou
+cat $iou | while read LINE
 do
-	echo $LINE ": $(tput setaf 4)IOU switch "`ps -ef|grep "[w]rapper-linux.*linux-l2.*"|awk '{print $10}'|cut -d'-' -f5|sed 's/.bin//g'`>>/tmp/iou_active
+	echo $LINE ": $(tput setaf 4)IOU switch "`ps -ef|grep "[w]rapper-linux.*linux-l2.*"|awk '{print $10}'|cut -d'-' -f5|sed 's/.bin//g'` "$(tput sgr0)">> $iou_active
 done
 
 
-if [ -f  /tmp/iou_active ];
+if [ -s  $iou_active ];
 then
-	cat /tmp/iou_active | sort -n 
+	cat $iou_active | sort -n 
 else
 	echo "$(tput setaf 1)$(tput bold)There are no routers currently running"
 fi
 echo "$(tput sgr0)"
+
+# remove temporary files
+rm $iou
+rm $iol
+rm $iou_active
 
