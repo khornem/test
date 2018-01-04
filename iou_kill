@@ -36,6 +36,7 @@ case $1 in
 			pkill sniffer
 			pkill ioucon
 			kill `ps -ef|grep "[i]86bi_linux-adventerprisek9_xsi-ms.*"|awk '{print $2}'`
+			echo
 			exit
 			;;
 	"-rid")	process=`ps -ef|grep "[w]rapper-linux.* -R.* $2$"|awk '{print $2}'`
@@ -54,10 +55,12 @@ case $1 in
 				then
 					echo "Kill console $2: process $console_process"
 					kill $console_process
+					echo
 				fi
 			fi
 			echo "Killing router ID $2, process $process"
 			kill $process
+			echo
 			exit
 			;;
 	"-sid")	process=`ps -ef|grep "[s]niffer.*ether $2"|awk '{print $2}'`
@@ -70,6 +73,7 @@ case $1 in
 			else
 				echo "Killing sniffer ID $2, process $process"
 				kill $process
+				echo
 			fi	
 			exit		
 			;;
@@ -150,6 +154,7 @@ for ((i=0; i<$num_routers ; i++)) ;do
 	fi
 	echo "Killing $mode $target_router using process $process"
 	kill $process
+	echo
 done
 	 
 
